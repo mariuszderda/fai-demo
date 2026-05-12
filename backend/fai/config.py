@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = Field(default=None)
     anthropic_model: str = Field(default="claude-sonnet-4-5")
     otx_api_key: str | None = Field(default=None)
+    use_stub_llm: bool = Field(default=False)
     approval_ttl_seconds: int = Field(default=30)
     cors_origins: str = Field(default="http://localhost:5173,http://localhost:8080")
 

@@ -76,5 +76,13 @@
     "related_campaigns": [
       "InvoiceDropper2026"
     ]
+  },
+  "4a5cd2947eb20214c7d5df3f688a4c18f6b7f5d1e9c2a3b4d5e6f7a8b9c0d1e2": {
+    "reputation": "malicious",
+    "first_seen": "2025-11-14T08:22:11Z",
+    "last_seen": "2026-05-08T19:33:42Z",
+    "related_campaigns": [
+      "LockedFiles2025"
+    ]
   }
 }
