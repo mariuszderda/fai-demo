@@ -29,11 +29,40 @@ export const SEVERITY_LABELS: Record<Severity, string> = {
   info: "Informacyjny",
 };
 
+export const STEP_LABELS: Record<string, string> = {
+  ingest: "Pobranie alertu",
+  collect: "Zebranie artefaktów",
+  coc: "Chain of custody",
+  ioc_extraction: "Ekstrakcja IoC (LLM)",
+  ioc_review: "Ocena IoC (analityk)",
+  mitre_mapping: "Mapowanie MITRE",
+  ti_lookup: "Wyszukanie w Threat Intel",
+  approval: "Zgoda na izolację",
+  report: "Generowanie raportu",
+  done: "Zakończono",
+};
+
+export const APPROVAL_DECISION_LABELS: Record<string, string> = {
+  pending: "Oczekuje",
+  approved: "Zaakceptowano",
+  denied: "Odrzucono",
+  killswitch: "Kill switch",
+  timeout: "Przekroczono czas",
+};
+
 export function auditLabel(code: string): string {
   return AUDIT_LABELS[code] ?? code;
 }
 
 export function severityLabel(severity: Severity): string {
   return SEVERITY_LABELS[severity];
+}
+
+export function stepLabel(step: string): string {
+  return STEP_LABELS[step] ?? step;
+}
+
+export function approvalDecisionLabel(decision: string): string {
+  return APPROVAL_DECISION_LABELS[decision] ?? decision;
 }
 
