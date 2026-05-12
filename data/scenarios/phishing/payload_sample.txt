@@ -1,0 +1,5 @@
+File name: faktura.exe
+SHA-256: 23b8c1e9392456de3eb13b9046685257bdd640fb06671ad11c80317fa3b1799d
+File size: 18432 bytes
+MIME type: application/vnd.microsoft.portable-executable
+Notes: The sample is a harmless text fixture only; it is not an actual executable.

@@ -1,0 +1,15 @@
+Received: from mailgw01.evil-corp-demo.test (mailgw01.evil-corp-demo.test [203.0.113.71])
+    by mx1.corporate.example with ESMTPS id 7F21B4C12A
+    for <analyst@corporate.example>; Mon, 11 May 2026 09:11:02 +0000
+Received: from relay.evil-corp-demo.test (relay.evil-corp-demo.test [203.0.113.47])
+    by mailgw01.evil-corp-demo.test with ESMTP id 7F21B4C10F
+    for <analyst@corporate.example>; Mon, 11 May 2026 09:10:58 +0000
+Return-Path: <noreply@bounce.evil-corp-demo.test>
+From: ksiegowosc@evil-corp-demo.test
+To: analyst@corporate.example
+Subject: Faktura zaległa #4471 — pilna płatność
+Date: Mon, 11 May 2026 09:10:52 +0000
+Message-ID: <20260511091052.4471@evil-corp-demo.test>
+Authentication-Results: mx1.corporate.example; spf=fail smtp.mailfrom=evil-corp-demo.test; dkim=none; dmarc=fail
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8

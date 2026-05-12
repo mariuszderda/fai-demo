@@ -1,0 +1,34 @@
+[
+  {
+    "proto": "tcp",
+    "local_address": "10.10.20.41:51124",
+    "remote_address": "c2-relay.evil-corp-demo.test",
+    "remote_port": 443,
+    "state": "ESTABLISHED",
+    "process": "cryptdaemon"
+  },
+  {
+    "proto": "tcp",
+    "local_address": "10.10.20.41:51125",
+    "remote_address": "c2-relay.evil-corp-demo.test",
+    "remote_port": 443,
+    "state": "ESTABLISHED",
+    "process": "curl"
+  },
+  {
+    "proto": "udp",
+    "local_address": "10.10.20.41:5353",
+    "remote_address": "224.0.0.251",
+    "remote_port": 5353,
+    "state": "LISTEN",
+    "process": "avahi-daemon"
+  },
+  {
+    "proto": "tcp",
+    "local_address": "10.10.20.41:22",
+    "remote_address": "198.51.100.24",
+    "remote_port": 50218,
+    "state": "ESTABLISHED",
+    "process": "sshd"
+  }
+]

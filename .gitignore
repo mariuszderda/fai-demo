@@ -1,1 +1,12 @@
 .idea/
+.env
+.venv/
+runtime/
+backend/.env
+data/mitre/enterprise-attack.json
+*.pyc
+__pycache__/
+node_modules/
+dist/
+.vite/
+.DS_Store

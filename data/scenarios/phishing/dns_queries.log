@@ -1,0 +1,4 @@
+2026-05-11T09:15:31Z analyst-workstation-07 resolver: query A intranet.corporate.example
+2026-05-11T09:15:34Z analyst-workstation-07 resolver: query A cdn.jsdelivr.net
+2026-05-11T09:15:47Z analyst-workstation-07 resolver: query A faktury-online.evil-corp-demo.test
+2026-05-11T09:15:48Z analyst-workstation-07 resolver: query A cdn.legitimate-bank.example

@@ -1,0 +1,80 @@
+{
+  "203.0.113.47": {
+    "reputation": "malicious",
+    "first_seen": "2025-12-03T11:02:18Z",
+    "last_seen": "2026-05-10T22:47:09Z",
+    "related_campaigns": [
+      "LockedFiles2025"
+    ]
+  },
+  "c2-relay.evil-corp-demo.test": {
+    "reputation": "malicious",
+    "first_seen": "2025-12-11T09:15:02Z",
+    "last_seen": "2026-05-11T08:14:21Z",
+    "related_campaigns": [
+      "LockedFiles2025"
+    ]
+  },
+  "evil-corp-demo.test": {
+    "reputation": "malicious",
+    "first_seen": "2026-04-29T07:10:00Z",
+    "last_seen": "2026-05-11T09:10:52Z",
+    "related_campaigns": [
+      "InvoiceDropper2026"
+    ]
+  },
+  "faktury-online.evil-corp-demo.test": {
+    "reputation": "malicious",
+    "first_seen": "2026-05-02T14:05:18Z",
+    "last_seen": "2026-05-11T09:16:02Z",
+    "related_campaigns": [
+      "InvoiceDropper2026"
+    ]
+  },
+  "23b8c1e9392456de3eb13b9046685257bdd640fb06671ad11c80317fa3b1799d": {
+    "reputation": "malicious",
+    "first_seen": "2026-05-11T09:15:44Z",
+    "last_seen": "2026-05-11T09:16:03Z",
+    "related_campaigns": [
+      "InvoiceDropper2026"
+    ]
+  },
+  "legitimate-bank.example": {
+    "reputation": "clean",
+    "first_seen": "2020-01-01T00:00:00Z",
+    "last_seen": "2026-05-11T09:15:48Z",
+    "related_campaigns": []
+  },
+  "support@evil-corp-demo.test": {
+    "reputation": "malicious",
+    "first_seen": "2026-05-11T08:14:22Z",
+    "last_seen": "2026-05-11T08:14:22Z",
+    "related_campaigns": [
+      "LockedFiles2025"
+    ]
+  },
+  "ksiegowosc@evil-corp-demo.test": {
+    "reputation": "malicious",
+    "first_seen": "2026-05-11T09:10:52Z",
+    "last_seen": "2026-05-11T09:10:52Z",
+    "related_campaigns": [
+      "InvoiceDropper2026"
+    ]
+  },
+  "noreply@bounce.evil-corp-demo.test": {
+    "reputation": "malicious",
+    "first_seen": "2026-05-11T09:10:52Z",
+    "last_seen": "2026-05-11T09:10:52Z",
+    "related_campaigns": [
+      "InvoiceDropper2026"
+    ]
+  },
+  "https://faktury-online.evil-corp-demo.test/download/faktura.exe": {
+    "reputation": "malicious",
+    "first_seen": "2026-05-11T09:15:44Z",
+    "last_seen": "2026-05-11T09:16:03Z",
+    "related_campaigns": [
+      "InvoiceDropper2026"
+    ]
+  }
+}

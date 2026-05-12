@@ -1,0 +1,26 @@
+[
+  {
+    "visited_at_utc": "2026-05-11T09:10:51Z",
+    "browser": "Chrome",
+    "title": "Inbox - Corporate Webmail",
+    "url": "https://mail.corporate.example/inbox"
+  },
+  {
+    "visited_at_utc": "2026-05-11T09:15:40Z",
+    "browser": "Chrome",
+    "title": "Faktury online - portal",
+    "url": "https://faktury-online.evil-corp-demo.test/login"
+  },
+  {
+    "visited_at_utc": "2026-05-11T09:15:44Z",
+    "browser": "Chrome",
+    "title": "Pobierz fakturę",
+    "url": "https://faktury-online.evil-corp-demo.test/download/faktura.exe"
+  },
+  {
+    "visited_at_utc": "2026-05-11T09:16:02Z",
+    "browser": "Chrome",
+    "title": "Downloads",
+    "url": "chrome://downloads/"
+  }
+]

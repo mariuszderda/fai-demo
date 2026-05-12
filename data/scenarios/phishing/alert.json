@@ -1,0 +1,9 @@
+{
+  "alert_id": "SIEM-PH-2026-0511-014",
+  "severity": "medium",
+  "host": "analyst-workstation-07",
+  "host_os": "Windows 11",
+  "detected_at_utc": "2026-05-11T09:16:03Z",
+  "rule": "SUSPICIOUS_EMAIL_CLICK + NEW_DOWNLOAD",
+  "summary": "Analyst workstation clicked a suspicious email link and downloaded a fake invoice payload"
+}
