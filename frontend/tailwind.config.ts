@@ -2,7 +2,7 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: "class",
-  content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
+  content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
@@ -17,14 +17,24 @@ export default {
         "text-muted": "var(--text-muted)",
         accent: "var(--accent)",
         "accent-dim": "var(--accent-dim)",
-        "severity-critical": "var(--severity-critical)",
-        "severity-high": "var(--severity-high)",
-        "severity-medium": "var(--severity-medium)",
-        "severity-low": "var(--severity-low)",
-        "severity-info": "var(--severity-info)",
+        severity: {
+          critical: "var(--severity-critical)",
+          high: "var(--severity-high)",
+          medium: "var(--severity-medium)",
+          low: "var(--severity-low)",
+          info: "var(--severity-info)",
+        },
+      },
+      fontFamily: {
+        mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
+        body: ['"Inter Tight"', "system-ui", "sans-serif"],
+      },
+      borderRadius: {
+        sm: "2px",
+        DEFAULT: "4px",
       },
     },
   },
-  plugins: [],
+  plugins: [require("tailwindcss-animate")],
 } satisfies Config;
 
