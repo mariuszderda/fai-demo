@@ -52,7 +52,9 @@ class IocExtractor:
         # Call LLM
         try:
             response = await self.llm.complete_json(
-                SYSTEM_PROMPT_IOC_EXTRACTION, user_content
+                SYSTEM_PROMPT_IOC_EXTRACTION,
+                user_content,
+                incident_id=incident_id,
             )
         except LlmResponseError as e:
             logger.error(f"IoC extraction failed: {e}")

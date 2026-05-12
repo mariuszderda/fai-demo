@@ -24,6 +24,7 @@ class SiemConsumer:
         self.chain_of_custody = chain_of_custody
         self.audit = audit
         self.client = client
+        self.last_alert: dict[str, object] | None = None
 
     async def ingest_alert(self, incident_id: str, scenario: str) -> list[Artifact]:
         """Ingest a mock SIEM alert and all related artifacts."""
@@ -34,6 +35,7 @@ class SiemConsumer:
         alert_response.raise_for_status()
         alert = alert_response.json()
         alert_id = alert["alert_id"]
+        self.last_alert = alert
 
         # Write audit event for alert received
         event = make_event(

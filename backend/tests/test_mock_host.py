@@ -2,10 +2,27 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from fastapi.testclient import TestClient
 
 from fai.app import create_app
+from fai.core.models import ApprovalDecision
+from fai.orchestrator.approval_gate import get_approval_gate
+
+
+def _issue_token() -> str:
+    """Issue a valid one-time approval token for the mock host test."""
+
+    async def _inner() -> str:
+        gate = get_approval_gate()
+        approval = await gate.request("test-incident", "host-001", "test")
+        decided = await gate.decide(approval.id, ApprovalDecision.APPROVED, "tester")
+        assert decided.isolation_token is not None
+        return decided.isolation_token
+
+    return asyncio.run(_inner())
 
 
 @pytest.fixture
@@ -23,9 +40,10 @@ def test_isolate_without_token(client: TestClient) -> None:
 
 def test_isolate_with_token(client: TestClient) -> None:
     """Test isolating host with token."""
+    token = _issue_token()
     response = client.post(
         "/mock/host/host-001/isolate",
-        headers={"X-Approval-Token": "test_token"},
+        headers={"X-Approval-Token": token},
     )
     assert response.status_code == 200
     data = response.json()

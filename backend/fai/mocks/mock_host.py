@@ -7,6 +7,10 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
+from fai.core.audit import make_event
+from fai.orchestrator.approval_gate import get_approval_gate
+from fai.runtime import get_audit_trail
+
 router = APIRouter(prefix="/mock/host", tags=["mock"])
 
 # In-memory host state: host_id -> {host_id, status, isolated_at}
@@ -33,6 +37,10 @@ async def isolate_host(
             detail="Missing X-Approval-Token header",
         )
 
+    approval_id = get_approval_gate().validate_token(x_approval_token)
+    if approval_id is None:
+        raise HTTPException(status_code=403, detail="Invalid or expired approval token")
+
     now = datetime.now(timezone.utc).isoformat()
 
     if host_id not in _hosts:
@@ -42,11 +50,25 @@ async def isolate_host(
     _hosts[host_id]["status"] = "isolated"
     _hosts[host_id]["isolated_at"] = now
     _hosts[host_id]["approval_token"] = x_approval_token
+    _hosts[host_id]["approval_id"] = approval_id
+
+    approval_request = get_approval_gate().get(approval_id)
+    incident_id = approval_request.incident_id if approval_request is not None else approval_id
+    await get_audit_trail().write(
+        make_event(
+            incident_id=incident_id,
+            actor="mock_host",
+            action="HOST_ISOLATED",
+            object=host_id,
+            approval_id=approval_id,
+        )
+    )
 
     return {
         "host_id": host_id,
         "status": "isolated",
         "isolated_at": now,
+        "approval_id": approval_id,
     }
 
 

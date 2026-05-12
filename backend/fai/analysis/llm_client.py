@@ -32,6 +32,7 @@ class LlmClient(Protocol):
         user_content: str,
         *,
         max_tokens: int = 4096,
+        incident_id: str | None = None,
     ) -> dict[str, Any]:
         """Call LLM with system prompt and user content, return parsed JSON.
 
@@ -69,14 +70,16 @@ class AnthropicClient:
         user_content: str,
         *,
         max_tokens: int = 4096,
+        incident_id: str | None = None,
     ) -> dict[str, Any]:
         """Call Anthropic API and return parsed JSON response."""
         prompt_hash = hashlib.sha256(system_prompt.encode()).hexdigest()
+        audit_incident_id = incident_id or "unknown"
 
         # Audit: LLM_CALL_STARTED
         await self.audit.write(
             make_event(
-                incident_id="system",
+                incident_id=audit_incident_id,
                 actor="llm_client",
                 action="LLM_CALL_STARTED",
                 object=self.model,
@@ -119,7 +122,7 @@ class AnthropicClient:
         # Audit: LLM_CALL_COMPLETED
         await self.audit.write(
             make_event(
-                incident_id="system",
+                incident_id=audit_incident_id,
                 actor="llm_client",
                 action="LLM_CALL_COMPLETED",
                 object=self.model,
@@ -172,9 +175,23 @@ class StubLlmClient:
         user_content: str,
         *,
         max_tokens: int = 4096,
+        incident_id: str | None = None,
     ) -> dict[str, Any]:
         """Return deterministic canned response based on prompt hash and scenario."""
-        prompt_hash = hashlib.sha256(system_prompt.encode()).hexdigest()[:8]
+        del max_tokens
+        prompt_hash = hashlib.sha256(system_prompt.encode()).hexdigest()
+        audit_incident_id = incident_id or "unknown"
+
+        if self.audit is not None:
+            await self.audit.write(
+                make_event(
+                    incident_id=audit_incident_id,
+                    actor="llm_client",
+                    action="LLM_CALL_STARTED",
+                    object="stub",
+                    prompt_sha256=prompt_hash,
+                )
+            )
 
         # Detect scenario from user_content
         scenario = self._detect_scenario(user_content)
@@ -190,6 +207,19 @@ class StubLlmClient:
 
         # Get canned response
         response = self._get_canned_response(prompt_hash, scenario, is_mitre_mapping)
+
+        if self.audit is not None:
+            await self.audit.write(
+                make_event(
+                    incident_id=audit_incident_id,
+                    actor="llm_client",
+                    action="LLM_CALL_COMPLETED",
+                    object="stub",
+                    prompt_sha256=prompt_hash,
+                    input_tokens=0,
+                    output_tokens=0,
+                )
+            )
 
         return response
 
@@ -397,7 +427,11 @@ class StubLlmClient:
         return {"iocs": [], "notes": "", "mappings": []}
 
 
-async def get_llm_client(settings: Settings, audit: AuditTrail | None = None) -> LlmClient:
+async def get_llm_client(
+    settings: Settings,
+    audit: AuditTrail | None = None,
+    incident_id: str | None = None,
+) -> LlmClient:
     """Factory function to get the appropriate LLM client.
 
     Args:
@@ -415,7 +449,7 @@ async def get_llm_client(settings: Settings, audit: AuditTrail | None = None) ->
         if audit:
             await audit.write(
                 make_event(
-                    incident_id="system",
+                    incident_id=incident_id or "unknown",
                     actor="llm_client",
                     action="LLM_STUB_MODE_ACTIVE",
                     object="stub_llm",

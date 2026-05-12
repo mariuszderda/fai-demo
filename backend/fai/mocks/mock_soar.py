@@ -7,6 +7,10 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from fai.core.audit import make_event
+from fai.orchestrator.approval_gate import get_approval_gate
+from fai.runtime import get_audit_trail
+
 router = APIRouter(prefix="/mock/soar", tags=["mock"])
 
 # In-memory case store: case_id -> {case}
@@ -88,8 +92,11 @@ async def isolate_host(body: IsolateHostRequest) -> dict:
             detail="Missing approval token",
         )
 
-    # TODO: Validate token against registry in Phase 4
-    # For now, accept any non-empty token
+    approval_id = get_approval_gate().validate_token(body.approval_token)
+    if approval_id is None:
+        approval_id = _approval_tokens.pop(body.approval_token, None)
+    if approval_id is None:
+        raise HTTPException(status_code=403, detail="Invalid or expired approval token")
 
     job_id = str(uuid4())
     job = {
@@ -97,10 +104,25 @@ async def isolate_host(body: IsolateHostRequest) -> dict:
         "host_id": body.host_id,
         "status": "queued",
         "approval_token": body.approval_token,
+        "approval_id": approval_id,
     }
     _cases[body.case_id]["responder_jobs"].append(job)
 
-    return {"job_id": job_id, "status": "queued"}
+    approval_request = get_approval_gate().get(approval_id)
+    incident_id = approval_request.incident_id if approval_request is not None else approval_id
+
+    await get_audit_trail().write(
+        make_event(
+            incident_id=incident_id,
+            actor="mock_soar",
+            action="SOAR_ISOLATE_HOST_REQUESTED",
+            object=body.host_id,
+            approval_id=approval_id,
+            case_id=body.case_id,
+        )
+    )
+
+    return {"job_id": job_id, "status": "queued", "approval_id": approval_id}
 
 
 @router.get("/case/{case_id}")
@@ -119,5 +141,8 @@ def register_approval_token(token: str, incident_id: str) -> None:
 
 def validate_approval_token(token: str) -> str | None:
     """Validate an approval token and return incident_id."""
+    approval_id = get_approval_gate().validate_token(token)
+    if approval_id is not None:
+        return approval_id
     return _approval_tokens.get(token)
 

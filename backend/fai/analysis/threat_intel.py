@@ -79,11 +79,12 @@ class ThreatIntelClient:
         if ioc.type not in supported_types:
             return Reputation.UNKNOWN, "unsupported_type"
 
+        lookup_details: dict[str, object] = {}
+
         # Try OTX first if key is available
         if self.settings.otx_api_key:
             try:
-                reputation, source = await self._lookup_otx(ioc)
-                return reputation, source
+                reputation, source, lookup_details = await self._lookup_otx(ioc)
             except Exception as e:
                 logger.warning(f"OTX lookup failed for {ioc.value}: {e}")
                 await self.audit.write(
@@ -95,11 +96,35 @@ class ThreatIntelClient:
                         error=str(e)[:100],
                     )
                 )
+                reputation, source = self._lookup_misp(ioc)
+                lookup_details = {"fallback": "misp", "otx_error": str(e)[:100]}
+        else:
+            await self.audit.write(
+                make_event(
+                    incident_id=ioc.incident_id,
+                    actor="threat_intel",
+                    action="OTX_TIMEOUT_FALLBACK_TO_MISP",
+                    object=ioc.value,
+                    error="otx_api_key_missing",
+                )
+            )
+            reputation, source = self._lookup_misp(ioc)
+            lookup_details = {"fallback": "misp", "otx_error": "otx_api_key_missing"}
 
-        # Fallback to MISP
-        return self._lookup_misp(ioc)
+        await self.audit.write(
+            make_event(
+                incident_id=ioc.incident_id,
+                actor="threat_intel",
+                action="OTX_LOOKUP_RESULT",
+                object=ioc.value,
+                source=source,
+                reputation=reputation.value,
+                **lookup_details,
+            )
+        )
+        return reputation, source
 
-    async def _lookup_otx(self, ioc: IoC) -> tuple[Reputation, str]:
+    async def _lookup_otx(self, ioc: IoC) -> tuple[Reputation, str, dict[str, object]]:
         """Lookup in AlienVault OTX.
 
         Args:
@@ -126,7 +151,7 @@ class ThreatIntelClient:
             url = f"{base_url}/file/{ioc.value}/general"
         else:
             # Shouldn't happen but handle gracefully
-            return Reputation.UNKNOWN, "unsupported"
+            return Reputation.UNKNOWN, "unsupported", {}
 
         # Make request with timeout
         response = await self.client.get(
@@ -141,17 +166,7 @@ class ThreatIntelClient:
 
         if response.status_code != 200:
             # Not found or other error, treat as clean
-            await self.audit.write(
-                make_event(
-                    incident_id=ioc.incident_id,
-                    actor="threat_intel",
-                    action="OTX_LOOKUP_RESULT",
-                    object=ioc.value,
-                    status_code=response.status_code,
-                    reputation="clean",
-                )
-            )
-            return Reputation.CLEAN, "otx"
+            return Reputation.CLEAN, "otx", {"status_code": response.status_code}
 
         # Parse response
         data = response.json()
@@ -159,18 +174,7 @@ class ThreatIntelClient:
 
         reputation = Reputation.MALICIOUS if pulse_count > 0 else Reputation.CLEAN
 
-        await self.audit.write(
-            make_event(
-                incident_id=ioc.incident_id,
-                actor="threat_intel",
-                action="OTX_LOOKUP_RESULT",
-                object=ioc.value,
-                pulse_count=pulse_count,
-                reputation=reputation.value,
-            )
-        )
-
-        return reputation, "otx"
+        return reputation, "otx", {"pulse_count": pulse_count}
 
     def _lookup_misp(self, ioc: IoC) -> tuple[Reputation, str]:
         """Lookup in MISP fallback data.

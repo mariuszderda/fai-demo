@@ -2,10 +2,27 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from fastapi.testclient import TestClient
 
 from fai.app import create_app
+from fai.core.models import ApprovalDecision
+from fai.orchestrator.approval_gate import get_approval_gate
+
+
+def _issue_token() -> str:
+    """Issue a valid one-time approval token for the mock SOAR test."""
+
+    async def _inner() -> str:
+        gate = get_approval_gate()
+        approval = await gate.request("test-incident", "host-001", "test")
+        decided = await gate.decide(approval.id, ApprovalDecision.APPROVED, "tester")
+        assert decided.isolation_token is not None
+        return decided.isolation_token
+
+    return asyncio.run(_inner())
 
 
 @pytest.fixture
@@ -85,6 +102,7 @@ def test_isolate_host_without_token(client: TestClient) -> None:
 
 def test_isolate_host_with_token(client: TestClient) -> None:
     """Test isolating host with approval token."""
+    token = _issue_token()
     # Create case
     case_response = client.post(
         "/mock/soar/case",
@@ -102,7 +120,7 @@ def test_isolate_host_with_token(client: TestClient) -> None:
         json={
             "case_id": case_id,
             "host_id": "host-001",
-            "approval_token": "valid_token_123",
+            "approval_token": token,
         },
     )
     assert response.status_code == 200

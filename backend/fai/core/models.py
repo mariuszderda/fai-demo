@@ -140,6 +140,7 @@ class ApprovalRequest(BaseModel):
     isolation_target: Literal["host_network", "mail_relay_quarantine"] = (
         "host_network"
     )
+    isolation_token: str | None = None
 
     @field_validator("created_at_utc", "decided_at_utc", mode="before")
     @classmethod
@@ -161,6 +162,17 @@ class Incident(BaseModel):
     severity: Severity = Severity.INFO
     current_step: str
     completed_at_utc: datetime | None = None
+    host_id: str | None = None
+    alert_summary: str | None = None
+    approval_id: str | None = None
+    isolation_target: str | None = None
+    isolation_decision: ApprovalDecision | None = None
+    report_path: str | None = None
+    report_md_path: str | None = None
+    report_html_path: str | None = None
+    artifact_count: int = 0
+    ioc_count: int = 0
+    technique_count: int = 0
 
     @field_validator("started_at_utc", "completed_at_utc", mode="before")
     @classmethod

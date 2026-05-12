@@ -78,7 +78,7 @@ class ReportGenerator:
 
         # Get executive summary from LLM
         try:
-            executive_summary = await self._generate_executive_summary(report_data)
+            executive_summary = await self._generate_executive_summary(incident.id, report_data)
         except LlmResponseError as e:
             logger.error(f"Failed to generate executive summary: {e}")
             executive_summary = "Failed to generate summary due to LLM error.\n"
@@ -142,7 +142,11 @@ class ReportGenerator:
             ],
         }
 
-    async def _generate_executive_summary(self, report_data: dict[str, Any]) -> str:
+    async def _generate_executive_summary(
+        self,
+        incident_id: str,
+        report_data: dict[str, Any],
+    ) -> str:
         """Generate executive summary using LLM.
 
         Args:
@@ -154,7 +158,9 @@ class ReportGenerator:
         user_content = build_executive_summary_user_content(report_data)
 
         response = await self.llm.complete_json(
-            SYSTEM_PROMPT_EXECUTIVE_SUMMARY, user_content
+            SYSTEM_PROMPT_EXECUTIVE_SUMMARY,
+            user_content,
+            incident_id=incident_id,
         )
 
         # Extract text (could be plain text or wrapped in a field)

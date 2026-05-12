@@ -55,7 +55,9 @@ class MitreMapper:
         # Call LLM
         try:
             response = await self.llm.complete_json(
-                SYSTEM_PROMPT_MITRE_MAPPING, user_content
+                SYSTEM_PROMPT_MITRE_MAPPING,
+                user_content,
+                incident_id=incident_id,
             )
         except LlmResponseError as e:
             logger.error(f"MITRE mapping failed: {e}")

@@ -46,6 +46,10 @@ class EventBus:
         if tasks:
             await asyncio.gather(*tasks)
 
+    def clear(self) -> None:
+        """Clear all subscriptions."""
+        self._queues.clear()
+
 
 @lru_cache(maxsize=1)
 def get_event_bus() -> EventBus:
