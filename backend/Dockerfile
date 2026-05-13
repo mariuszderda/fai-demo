@@ -33,5 +33,5 @@ COPY data/ ./data/
 RUN chmod +x /app/scripts/bootstrap.sh
 
 EXPOSE 8080
-CMD ["bash", "-lc", "/app/scripts/bootstrap.sh && exec uvicorn fai.app:app --host 0.0.0.0 --port 8080"]
+CMD ["bash", "-c", "/app/scripts/bootstrap.sh && exec /opt/venv/bin/uvicorn fai.app:app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips='*'"]
 
