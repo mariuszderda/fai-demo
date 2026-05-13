@@ -17,6 +17,7 @@ RUN python -m venv /opt/venv \
 FROM python:3.11-slim AS runtime
 
 ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH="/app/backend" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 

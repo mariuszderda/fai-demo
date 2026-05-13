@@ -1,0 +1,18 @@
+FROM node:20-alpine AS build
+WORKDIR /app
+
+ENV VITE_API_BASE=""
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . ./
+RUN npm run build
+
+FROM alpine:3.20 AS output
+WORKDIR /app
+
+COPY --from=build /app/dist /dist
+
+CMD ["sh", "-lc", "mkdir -p /output && cp -a /dist/. /output/ && tail -f /dev/null"]
+

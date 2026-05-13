@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     otx_api_key: str | None = Field(default=None)
     use_stub_llm: bool = Field(default=False)
     approval_ttl_seconds: int = Field(default=600)
-    cors_origins: str = Field(default="http://localhost:5173,http://localhost:8080")
+    cors_origins: str = Field(default="http://localhost:5173,http://localhost:8080,https://fai.mariuszderda.pl")
 
     @property
     def cors_origins_list(self) -> list[str]:

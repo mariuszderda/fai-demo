@@ -1,6 +1,9 @@
 FROM node:20-slim AS build
 WORKDIR /app/frontend
 
+ARG VITE_API_BASE=http://localhost:8080
+ENV VITE_API_BASE=${VITE_API_BASE}
+
 COPY frontend/package*.json ./
 RUN npm ci
 

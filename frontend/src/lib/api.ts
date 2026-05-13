@@ -24,7 +24,7 @@ export class ApiError extends Error {
   }
 }
 
-export const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
+export const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);

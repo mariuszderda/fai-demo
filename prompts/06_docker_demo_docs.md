@@ -22,6 +22,391 @@ Critical: the README's "Build-time decisions" section must list every non-obviou
 When done, run `docker compose down -v && docker compose up --build` from a clean state and verify both scenarios end-to-end. Summarize and stop. This is the last phase.
 ```
 
+```
+# Phase 7 prompt — copy and paste into Copilot Chat (Agent mode)
+
+
+You are working in agent mode on Phase 7 — the final phase — of the
+Forensics AI (FAI) project.
+
+Read AGENTS.md at the repo root first — treat it as hard constraints.
+Then read prompts/06_docker_demo_docs.md for the base spec.
+
+This phase has ADDITIONAL requirements beyond the base spec:
+
+## DEPLOYMENT TARGET
+
+The app will be deployed to a GCP Compute Engine VM (e2-medium, Ubuntu)
+and served at https://fai.mariuszderda.pl with Let's Encrypt SSL.
+
+## What to build in this phase
+
+### 1. Production docker-compose (docker-compose.prod.yml)
+
+Three services:
+
+**nginx** — reverse proxy + SSL termination:
+- Image: nginx:alpine
+- Ports: 80:80, 443:443
+- Volumes:
+    - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    - ./nginx/conf.d/:/etc/nginx/conf.d/:ro
+    - ./certbot/www:/var/www/certbot:ro
+    - ./certbot/conf:/etc/letsencrypt:ro
+    - frontend-build:/usr/share/nginx/html:ro
+- Depends on: backend, frontend
+
+**backend** — FastAPI + uvicorn:
+- Build from backend/Dockerfile
+- NOT exposed to host directly (nginx proxies)
+- Environment from .env.production
+- Volumes:
+    - ./runtime:/app/runtime
+    - ./data:/app/data:ro
+
+**frontend** — build stage only:
+- Build from frontend/Dockerfile.prod (multi-stage: node build → copy
+  dist to a named volume)
+- The built files go into a named Docker volume `frontend-build` that
+  nginx reads
+
+Named volumes:
+- frontend-build (shared between frontend build and nginx)
+
+### 2. Nginx configuration (nginx/conf.d/default.conf)
+
+```nginx
+server {
+    listen 80;
+    server_name fai.mariuszderda.pl;
+
+    # Let's Encrypt challenge
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Redirect all other HTTP to HTTPS
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name fai.mariuszderda.pl;
+
+    ssl_certificate /etc/letsencrypt/live/fai.mariuszderda.pl/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/fai.mariuszderda.pl/privkey.pem;
+
+    # Frontend SPA
+    location / {
+        root /usr/share/nginx/html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Backend API proxy
+    location /api/ {
+        proxy_pass http://backend:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # SSE needs special proxy settings
+    location /api/v1/incidents/ {
+        proxy_pass http://backend:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Connection '';
+        proxy_http_version 1.1;
+        chunked_transfer_encoding off;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 86400s;
+    }
+
+    # Mock endpoints (for lecturer inspection)
+    location /mock/ {
+        proxy_pass http://backend:8080;
+        proxy_set_header Host $host;
+    }
+}
+```
+
+Also create nginx/nginx.conf with basic top-level config (worker
+processes, events block, http block that includes conf.d/*.conf).
+
+### 3. Frontend production Dockerfile (frontend/Dockerfile.prod)
+
+Multi-stage:
+- Stage 1 (build): node:20-alpine, npm ci, npm run build
+    - Set VITE_API_BASE="" (empty string — relative URLs, nginx proxies)
+- Stage 2 (output): alpine, just copy dist/ to a known location
+  that docker-compose mounts as a volume
+
+The key insight: VITE_API_BASE must be empty string for production
+so that fetch("/api/v1/...") goes to the same origin (nginx), which
+proxies to backend. In dev mode it pointed to localhost:8080.
+
+### 4. Backend Dockerfile update
+
+Ensure backend/Dockerfile:
+- Runs scripts/bootstrap.sh to download MITRE dataset
+- Starts uvicorn on 0.0.0.0:8080 (internal only, nginx proxies)
+- Sets PYTHONPATH if needed
+
+### 5. Environment file (.env.production.example)
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-sonnet-4-5
+OTX_API_KEY=...
+APPROVAL_TTL_SECONDS=120
+CORS_ORIGINS=https://fai.mariuszderda.pl
+USE_STUB_LLM=false
+```
+
+Note CORS_ORIGINS uses https:// and the real domain, not localhost.
+
+### 6. Deploy script (scripts/deploy.sh)
+
+Bash script for a fresh Ubuntu 22.04+ VM:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+DOMAIN="fai.mariuszderda.pl"
+EMAIL="mariusz.derda@gmail.com"
+
+echo "=== FAI Deployment Script ==="
+
+# 1. Install Docker if not present
+if ! command -v docker &> /dev/null; then
+    echo "Installing Docker..."
+    curl -fsSL https://get.docker.com | sh
+    sudo usermod -aG docker $USER
+    echo "Docker installed. Log out and back in, then re-run this script."
+    exit 0
+fi
+
+# 2. Install docker-compose plugin if not present
+if ! docker compose version &> /dev/null; then
+    echo "Installing Docker Compose plugin..."
+    sudo apt-get update
+    sudo apt-get install -y docker-compose-plugin
+fi
+
+# 3. Create required directories
+mkdir -p certbot/www certbot/conf runtime/artifacts runtime/audit runtime/reports nginx/conf.d
+
+# 4. Bootstrap MITRE dataset
+if [ ! -f data/mitre/enterprise-attack.json ]; then
+    echo "Downloading MITRE ATT&CK dataset..."
+    bash scripts/bootstrap.sh
+fi
+
+# 5. Copy env file
+if [ ! -f .env.production ]; then
+    cp .env.production.example .env.production
+    echo "EDIT .env.production with your real API keys before continuing!"
+    exit 1
+fi
+
+# 6. Initial cert setup (HTTP only first)
+# Start nginx temporarily on port 80 only for ACME challenge
+echo "Obtaining Let's Encrypt certificate..."
+# Create a temporary nginx config for cert acquisition
+cat > nginx/conf.d/default.conf << 'NGINX'
+server {
+    listen 80;
+    server_name DOMAIN_PLACEHOLDER;
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    location / {
+        return 200 'FAI cert setup in progress';
+    }
+}
+NGINX
+sed -i "s/DOMAIN_PLACEHOLDER/$DOMAIN/g" nginx/conf.d/default.conf
+
+docker compose -f docker-compose.prod.yml up -d nginx
+
+# Run certbot
+docker run --rm \
+    -v $(pwd)/certbot/www:/var/www/certbot \
+    -v $(pwd)/certbot/conf:/etc/letsencrypt \
+    certbot/certbot certonly --webroot \
+    --webroot-path=/var/www/certbot \
+    --email $EMAIL --agree-tos --no-eff-email \
+    -d $DOMAIN
+
+# 7. Deploy with full HTTPS config
+echo "Starting FAI with HTTPS..."
+# Now the real nginx config (with SSL) takes over
+docker compose -f docker-compose.prod.yml down
+# Restore the production nginx config
+# (the one from the repo, not the temp one)
+git checkout -- nginx/conf.d/default.conf
+docker compose -f docker-compose.prod.yml up -d --build
+
+echo ""
+echo "=== FAI deployed at https://$DOMAIN ==="
+echo "Check: curl -I https://$DOMAIN"
+```
+
+### 7. Certbot renewal cron
+
+Add a `scripts/renew-cert.sh`:
+```bash
+#!/bin/bash
+docker run --rm \
+    -v $(pwd)/certbot/www:/var/www/certbot \
+    -v $(pwd)/certbot/conf:/etc/letsencrypt \
+    certbot/certbot renew --quiet
+docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
+```
+Mention in README to add a cron: `0 3 * * 0 cd /path/to/fai && bash scripts/renew-cert.sh`
+
+### 8. README.md — comprehensive
+
+Replace the placeholder README. Structure:
+
+# Forensics AI (FAI)
+
+## What this demo shows
+(list of key features — pipeline, LLM, MITRE, approval gate, etc.)
+
+## Quick start — local development
+```
+git clone ...
+cd fai
+cp backend/.env.example backend/.env
+# edit .env: add ANTHROPIC_API_KEY
+cd backend && python -m venv .venv && source .venv/bin/activate
+pip install -e .[dev]
+bash scripts/bootstrap.sh
+uvicorn fai.app:app --port 8080
+
+# separate terminal:
+cd frontend && npm ci && npm run dev
+```
+Open http://localhost:5173
+
+## Production deployment (GCP VM)
+
+Prerequisites:
+- GCP Compute Engine VM (e2-medium recommended, Ubuntu 22.04)
+- Domain pointing to VM IP (A record for fai.mariuszderda.pl)
+- Firewall rules: allow TCP 80, 443
+
+Steps:
+```
+ssh your-vm
+git clone <repo> fai && cd fai
+cp .env.production.example .env.production
+# edit .env.production with real keys
+bash scripts/deploy.sh
+```
+Open https://fai.mariuszderda.pl
+
+## Running the demo
+See DEMO.md
+
+## Real vs mocked
+(table from AGENTS.md §8)
+
+## Architecture
+(ASCII diagram)
+
+## Mapping to course requirements
+- MH-01 → FR-1 (SIEM ingestion)
+- MH-02 → FR-2 (Chain of custody)
+- MH-03 → FR-3 (LLM analysis)
+- MH-04 → FR-4 (MITRE mapping)
+- MH-05 → FR-5 (Threat Intelligence)
+- MH-06 → FR-6 (Approval gate)
+- MH-07 → FR-8, FR-9 (Reporting + audit)
+
+## Tests
+```
+cd backend && pytest -v
+```
+All tests pass without ANTHROPIC_API_KEY (stub mode).
+
+## Build-time decisions
+(Read docs/session_summaries/phase_*.md and compile the key decisions
+from each phase into a bullet list here.)
+
+## License
+MIT
+
+### 9. DEMO.md
+
+Create a comprehensive demo script. Use the template from
+prompts/06_docker_demo_docs.md but update:
+- URL: https://fai.mariuszderda.pl (not localhost)
+- Include the 60-second intro script (Polish)
+- Include click-through for both scenarios (ransomware + phishing)
+- Include the "three things to point at" section
+- Include failure modes and recovery
+- Include anticipated Q&A (6 questions minimum)
+- Add a section "Before the defense" checklist:
+    1. VM is running
+    2. docker compose ps shows 3 healthy services
+    3. https://fai.mariuszderda.pl loads the dashboard
+    4. ANTHROPIC_API_KEY is set (not stub mode)
+    5. Run one ransomware scenario to warm up LLM
+    6. Clear runtime/ for a clean demo start
+
+### 10. Update CORS in backend config
+
+Ensure backend/fai/config.py default for cors_origins includes
+https://fai.mariuszderda.pl alongside localhost origins. The
+.env.production will override, but the default should be safe for
+both dev and prod.
+
+### 11. Update frontend api.ts
+
+Ensure VITE_API_BASE defaults to "" (empty string) not
+"http://localhost:8080" when the env var is not set. This way
+production builds use relative URLs (/api/v1/...) which nginx
+proxies. Only local dev needs the explicit localhost:8080.
+
+Change in frontend/src/lib/api.ts:
+```
+export const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+```
+
+### 12. CI workflow update
+
+Update .github/workflows/ci.yml to run both backend and frontend
+checks (it was created in Phase 1, may need updates for new test
+files from Phase 4-6).
+
+### 13. Session summary
+
+Write docs/session_summaries/phase_7.md with:
+- What was built (deployment infra, docs)
+- Deploy instructions
+- Build-time decisions
+- File manifest
+
+### 14. Final verification
+
+Before finishing, run:
+- cd backend && pytest -v (all tests pass)
+- cd frontend && npm run typecheck && npm run build (clean)
+- docker compose -f docker-compose.prod.yml build (images build)
+- Verify nginx.conf is syntactically valid
+
+Do NOT start any cloud deployment. The operator will do that manually.
+Stop after local verification and summarize.
+
+```
+
 ---
 
 ## Full specification
