@@ -103,7 +103,14 @@ class AnthropicClient:
             )
 
         # Extract text and parse JSON
-        response_text = message.content[0].text
+        # response_text = message.content[0].text
+        # try:
+        #     parsed = json.loads(response_text)
+        response_text = message.content[0].text.strip()
+        if response_text.startswith("```"):
+            response_text = response_text.split("\n", 1)[1] if "\n" in response_text else response_text
+            if response_text.endswith("```"):
+                response_text = response_text[:-3].strip()
         try:
             parsed = json.loads(response_text)
         except json.JSONDecodeError:
@@ -134,6 +141,19 @@ class AnthropicClient:
 
         return parsed
 
+    async def complete_raw(
+            self,
+            system_prompt: str,
+            user_content: str,
+            *,
+            incident_id: str = "",
+            max_tokens: int = 4096,
+    ) -> str:
+        """Call LLM and return raw text response without JSON parsing."""
+        message = await self._call_api(
+            system_prompt, user_content, max_tokens, self.model
+        )
+        return message.content[0].text.strip()
     async def _call_api(
         self,
         system_prompt: str,
@@ -151,11 +171,11 @@ class AnthropicClient:
                     system=system_prompt,
                     messages=[{"role": "user", "content": user_content}],
                 ),
-                timeout=30.0,
+                timeout=120.0,
             )
             return message
         except asyncio.TimeoutError as e:
-            raise LlmResponseError("LLM call timeout after 30s") from e
+            raise LlmResponseError("LLM call timeout after 120s") from e
 
 
 class StubLlmClient:
@@ -223,6 +243,23 @@ class StubLlmClient:
 
         return response
 
+    async def complete_raw(
+            self,
+            system_prompt: str,
+            user_content: str,
+            *,
+            incident_id: str = "",
+            max_tokens: int = 4096,
+    ) -> str:
+        """Return raw text for stub."""
+        result = await self.complete_json(
+            system_prompt, user_content, max_tokens=max_tokens
+        )
+        if isinstance(result, dict):
+            for key in ("executive_summary", "summary", "content", "text"):
+                if key in result and isinstance(result[key], str):
+                    return result[key]
+        return str(result)
     def _detect_scenario(self, content: str) -> str:
         """Detect scenario marker from user content.
 

@@ -141,35 +141,76 @@ class ReportGenerator:
                 for a in artifacts
             ],
         }
-
     async def _generate_executive_summary(
-        self,
-        incident_id: str,
-        report_data: dict[str, Any],
+            self,
+            incident_id: str,
+            report_data: dict[str, Any],
     ) -> str:
-        """Generate executive summary using LLM.
-
-        Args:
-            report_data: Structured incident data.
-
-        Returns:
-            Polish Markdown summary text.
-        """
+        """Generate executive summary using LLM."""
         user_content = build_executive_summary_user_content(report_data)
-
-        response = await self.llm.complete_json(
-            SYSTEM_PROMPT_EXECUTIVE_SUMMARY,
-            user_content,
-            incident_id=incident_id,
-        )
-
-        # Extract text (could be plain text or wrapped in a field)
-        if isinstance(response, dict):
-            summary = response.get("summary", str(response))
-        else:
-            summary = str(response)
-
-        return summary
+        try:
+            response = await self.llm.complete_json(
+                SYSTEM_PROMPT_EXECUTIVE_SUMMARY,
+                user_content,
+                incident_id=incident_id,
+            )
+            if isinstance(response, str):
+                return response
+            if isinstance(response, dict):
+                for key in ("executive_summary", "summary", "content", "text", "markdown"):
+                    if key in response and isinstance(response[key], str):
+                        return response[key]
+                strs = [v for v in response.values() if isinstance(v, str) and len(v) > 50]
+                if strs:
+                    return max(strs, key=len)
+            return str(response)
+        except Exception:
+            # LLM returned plain markdown instead of JSON — that's fine
+            # Try to get raw text from the last API call
+            try:
+                raw = await self.llm.complete_raw(
+                    SYSTEM_PROMPT_EXECUTIVE_SUMMARY,
+                    user_content,
+                    incident_id=incident_id,
+                )
+                return raw
+            except Exception:
+                raise
+    # async def _generate_executive_summary(
+    #     self,
+    #     incident_id: str,
+    #     report_data: dict[str, Any],
+    # ) -> str:
+    #     """Generate executive summary using LLM.
+    #
+    #     Args:
+    #         report_data: Structured incident data.
+    #
+    #     Returns:
+    #         Polish Markdown summary text.
+    #     """
+    #     user_content = build_executive_summary_user_content(report_data)
+    #
+    #     response = await self.llm.complete_json(
+    #         SYSTEM_PROMPT_EXECUTIVE_SUMMARY,
+    #         user_content,
+    #         incident_id=incident_id,
+    #     )
+    #
+    #     # Extract text (could be plain text or wrapped in a field)
+    #     if isinstance(response, dict):
+    #         # summary = response.get("summary", str(response))
+    #         for _k in ("executive_summary", "summary", "content", "text", "markdown"):
+    #             if _k in response and isinstance(response[_k], str):
+    #                 summary = response[_k]
+    #                 break
+    #         else:
+    #             _strs = [v for v in response.values() if isinstance(v, str) and len(v) > 50]
+    #             summary = max(_strs, key=len) if _strs else str(response)
+    #     else:
+    #         summary = str(response)
+    #
+    #     return summary
 
     def _build_markdown(
         self,
