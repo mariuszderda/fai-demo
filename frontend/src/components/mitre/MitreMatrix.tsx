@@ -18,8 +18,8 @@ function flattenTechniques(techniques: MitreMatrixTechnique[], prefix = ""): Arr
   const rows: Array<{ id: string; name: string }> = [];
   for (const technique of techniques) {
     rows.push({ id: technique.id, name: `${prefix}${technique.name}` });
-    if (technique.sub_techniques.length > 0) {
-      rows.push(...flattenTechniques(technique.sub_techniques, "└ "));
+    if ((technique.sub_techniques ?? []).length > 0) {
+      rows.push(...flattenTechniques(technique.sub_techniques ?? [], "└ "));
     }
   }
   return rows;

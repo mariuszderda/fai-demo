@@ -40,7 +40,7 @@ export default function PipelineStepper({ incidentId }: { incidentId: string }):
     <div className="rounded-sm border border-border-subtle bg-bg-surface p-4">
       {STEPS.map((step, index) => {
         const state = resolveStepState(step, incident.current_step);
-        const iconClass = state === "running" ? "border-accent text-accent animate-pulse" : state === "done" ? "border-accent text-accent" : state === "failed" ? "border-severity-critical text-severity-critical" : state === "awaiting" ? "border-severity-high text-severity-high" : "border-border-subtle text-text-muted";
+        const iconClass = state === "running" ? "border-accent text-accent animate-pulse-border" : state === "done" ? "border-accent text-accent" : state === "failed" ? "border-severity-critical text-severity-critical" : state === "awaiting" ? "border-severity-high text-severity-high" : "border-border-subtle text-text-muted";
 
         const meta = state === "done" ? step === "ioc_extraction" ? `${incident.ioc_count} IoC` : step === "mitre_mapping" ? `${incident.technique_count} technik` : step === "approval" && incident.isolation_decision ? incident.isolation_decision : formatDurationMs(avgDoneStepMs) : null;
 

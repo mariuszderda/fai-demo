@@ -102,6 +102,7 @@ export const api = {
   getAudit: (incidentId: string, filters?: AuditFilters) =>
     request<AuditEvent[]>(`/api/v1/audit/${incidentId}${queryString(filters)}`),
 
-  getSettings: () => request<SettingsResponse>("/api/v1/settings"),
+    getReport: (incidentId: string) => request<{ markdown: string; html: string }>(`/api/v1/incidents/${incidentId}/report`),
+    getSettings: () => request<SettingsResponse>("/api/v1/settings"),
 };
 

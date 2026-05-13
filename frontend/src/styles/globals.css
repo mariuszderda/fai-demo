@@ -118,3 +118,21 @@ samp {
   font-family: "Inter Tight", system-ui, sans-serif;
 }
 
+@layer utilities {
+  @keyframes pulse-border {
+    0%,
+    100% {
+      border-opacity: 1;
+    }
+    50% {
+      border-opacity: 0.5;
+    }
+  }
+
+  .animate-pulse-border {
+    animation: pulse-border 1.5s infinite;
+  }
+
+  /* The slide-in animation from tailwindcss-animate */
+  /* It's already available as `animate-in slide-in-from-right-10` */
+}

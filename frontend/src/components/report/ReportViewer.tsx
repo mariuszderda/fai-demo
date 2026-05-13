@@ -14,21 +14,20 @@ export default function ReportViewer({ incidentId }: { incidentId: string }): JS
   const [markdown, setMarkdown] = useState<string>("");
   const [mdError, setMdError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const load = async (): Promise<void> => {
-      setMdError(null);
-      setMarkdown("");
-      if (!incidentQuery.data?.report_md_path) return;
-      try {
-        const res = await fetch(incidentQuery.data.report_md_path);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        setMarkdown(await res.text());
-      } catch {
-        setMdError("Nie udało się pobrać treści raportu z report_md_path.");
-      }
-    };
-    void load();
-  }, [incidentQuery.data?.report_md_path]);
+    useEffect(() => {
+        const load = async (): Promise<void> => {
+            setMdError(null);
+            setMarkdown("");
+            if (incidentQuery.data?.current_step !== "done") return;
+            try {
+                const report = await api.getReport(incidentId);
+                setMarkdown(report.markdown);
+            } catch {
+                setMdError("Nie udało się pobrać treści raportu.");
+            }
+        };
+        void load();
+    }, [incidentQuery.data?.current_step, incidentId]);
 
   if (incidentQuery.isLoading) {
     return <div className="rounded-sm border border-border-subtle bg-bg-surface p-4 text-sm text-text-secondary">Ładowanie raportu...</div>;

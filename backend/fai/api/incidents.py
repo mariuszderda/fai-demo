@@ -61,3 +61,19 @@ async def verify_coc(incident_id: str) -> list[dict]:
     """Verify the incident chain of custody."""
     return await get_chain_of_custody().verify_integrity(incident_id)
 
+@router.get("/{incident_id}/report")
+async def get_report(incident_id: str) -> dict:
+    """Return the generated report as markdown and HTML."""
+    from pathlib import Path
+
+    reports_dir = Path(__file__).resolve().parents[3] / "runtime" / "reports"
+    md_path = reports_dir / f"{incident_id}.md"
+    html_path = reports_dir / f"{incident_id}.html"
+
+    if not md_path.exists():
+        raise HTTPException(status_code=404, detail="Report not yet generated")
+
+    markdown = md_path.read_text(encoding="utf-8")
+    html = html_path.read_text(encoding="utf-8") if html_path.exists() else ""
+
+    return {"markdown": markdown, "html": html}

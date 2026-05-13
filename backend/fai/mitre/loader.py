@@ -13,22 +13,23 @@ from fai.core.models import MitreTechnique
 logger = logging.getLogger(__name__)
 
 
+# MITRE phase_name in kill_chain_phases sometimes uses non-canonical names.
+# This map normalizes them to canonical tactic keys.
+_PHASE_NAME_ALIASES = {
+    "stealth": "defense-evasion",
+}
+
+
 class MitreLoader:
     """Load and validate MITRE ATT&CK techniques."""
 
     def __init__(self, dataset_path: Path) -> None:
-        """Initialize MITRE loader.
-
-        Args:
-            dataset_path: Path to enterprise-attack.json file.
-        """
         self.dataset_path = Path(dataset_path)
         self.techniques: dict[str, MitreTechnique] = {}
-        self.tactic_map: dict[str, list[str]] = {}  # tactic -> [technique_ids]
+        self.tactic_map: dict[str, list[str]] = {}
         self._load_dataset()
 
     def _load_dataset(self) -> None:
-        """Load and parse the MITRE dataset."""
         if not self.dataset_path.exists():
             logger.warning(f"MITRE dataset not found at {self.dataset_path}")
             return
@@ -40,73 +41,60 @@ class MitreLoader:
             logger.error(f"Failed to load MITRE dataset: {e}")
             return
 
-        # Extract technique objects
         if "objects" not in data:
             logger.warning("MITRE dataset missing 'objects' field")
             return
 
         for obj in data.get("objects", []):
-            if obj.get("type") == "attack-pattern":
-                # Extract technique ID
-                ext_refs = obj.get("external_references", [])
-                technique_id = None
-                for ref in ext_refs:
-                    if ref.get("source_name") == "mitre-attack":
-                        technique_id = ref.get("external_id")
-                        break
+            if obj.get("type") != "attack-pattern":
+                continue
+            if obj.get("revoked") or obj.get("x_mitre_deprecated"):
+                continue
 
-                if not technique_id:
+            technique_id = None
+            for ref in obj.get("external_references", []):
+                if ref.get("source_name") == "mitre-attack":
+                    technique_id = ref.get("external_id")
+                    break
+            if not technique_id:
+                continue
+
+            kill_chain = obj.get("kill_chain_phases", [])
+            tactic_keys: list[str] = []
+            for phase in kill_chain:
+                if phase.get("kill_chain_name") != "mitre-attack":
                     continue
+                raw = phase.get("phase_name", "")
+                if not raw:
+                    continue
+                canonical = _PHASE_NAME_ALIASES.get(raw, raw)
+                tactic_keys.append(canonical)
 
-                # Extract tactic
-                tactics = obj.get("x_mitre_tactics", [])
-                tactic = tactics[0] if tactics else "Unknown"
+            primary_tactic = tactic_keys[0] if tactic_keys else "unknown"
 
-                # Create technique object
-                tech = MitreTechnique(
-                    technique_id=technique_id,
-                    name=obj.get("name", ""),
-                    tactic=tactic,
-                )
-                self.techniques[technique_id] = tech
+            tech = MitreTechnique(
+                technique_id=technique_id,
+                name=obj.get("name", ""),
+                tactic=primary_tactic,
+            )
+            self.techniques[technique_id] = tech
 
-                # Map tactic -> techniques
-                if tactic not in self.tactic_map:
-                    self.tactic_map[tactic] = []
-                self.tactic_map[tactic].append(technique_id)
+            for tactic_key in tactic_keys:
+                self.tactic_map.setdefault(tactic_key, []).append(technique_id)
 
-        logger.info(f"Loaded {len(self.techniques)} techniques from MITRE dataset")
+        logger.info(
+            f"Loaded {len(self.techniques)} techniques from MITRE dataset "
+            f"({len(self.tactic_map)} tactic buckets)"
+        )
 
     def is_valid_technique(self, technique_id: str) -> bool:
-        """Check if a technique ID is valid.
-
-        Args:
-            technique_id: Technique ID to validate (e.g. T1234 or T1234.567).
-
-        Returns:
-            True if valid, False otherwise.
-        """
         return technique_id in self.techniques
 
     def get_technique(self, technique_id: str) -> MitreTechnique | None:
-        """Get technique metadata.
-
-        Args:
-            technique_id: Technique ID to retrieve.
-
-        Returns:
-            MitreTechnique object if found, None otherwise.
-        """
         return self.techniques.get(technique_id)
 
     @lru_cache(maxsize=1)
     def get_matrix(self) -> dict[str, Any]:
-        """Get frontend-friendly MITRE matrix structure.
-
-        Returns:
-            Dict with tactics and techniques organized hierarchically.
-        """
-        # Map tactic names to canonical form with IDs
         tactic_info = {
             "reconnaissance": {"id": "TA0043", "name": "Reconnaissance"},
             "resource-development": {"id": "TA0042", "name": "Resource Development"},
@@ -129,26 +117,38 @@ class MitreLoader:
         for tactic_key, tactic_meta in tactic_info.items():
             technique_ids = self.tactic_map.get(tactic_key, [])
 
-            techniques = []
+            parents: dict[str, dict[str, Any]] = {}
+            subs_by_parent: dict[str, list[dict[str, Any]]] = {}
+
             for tech_id in sorted(technique_ids):
                 tech = self.techniques.get(tech_id)
-                if tech:
-                    tech_dict = {
+                if not tech:
+                    continue
+
+                if "." in tech_id:
+                    parent_id = tech_id.split(".")[0]
+                    subs_by_parent.setdefault(parent_id, []).append({
                         "id": tech_id,
                         "name": tech.name,
-                        "sub_techniques": [],  # Could be expanded if sub-techniques exist
+                    })
+                else:
+                    parents[tech_id] = {
+                        "id": tech_id,
+                        "name": tech.name,
+                        "sub_techniques": [],
                     }
-                    techniques.append(tech_dict)
 
-            tactic_dict = {
+            for parent_id, subs in subs_by_parent.items():
+                if parent_id in parents:
+                    parents[parent_id]["sub_techniques"] = subs
+
+            techniques_list = sorted(parents.values(), key=lambda t: t["id"])
+
+            tactics_list.append({
                 "id": tactic_meta["id"],
                 "name": tactic_meta["name"],
                 "key": tactic_key,
-                "techniques": techniques,
-            }
-            tactics_list.append(tactic_dict)
+                "techniques": techniques_list,
+            })
 
-        return {
-            "tactics": tactics_list,
-        }
-
+        return {"tactics": tactics_list}
